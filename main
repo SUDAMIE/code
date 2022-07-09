@@ -38,8 +38,8 @@ data_convergent_bed13<-as.data.frame(fread("convergent_GRCh38_v38.bed13"))#"conv
 #####找出存在转录冲突并且两个基因都在癌症与正常组织中存在差异表达的基因对#####
 temp <- data.frame()
 for(i in 1:nrow(data_convergent_bed13)){
-  if((data_convergent_bed13[i,"V4"]%in%outRst_filter$gene_id)==TRUE#V4既存在转录冲突的基因对中正链上的基因
-     &&(data_convergent_bed13[i,"V10"]%in%outRst_filter$gene_id)==TRUE){#V10既存在转录冲突的基因对中负链上的基因
+  if((data_convergent_bed13[i,"V4"]%in%outRst_filter$gene_id)==TRUE#V4即存在转录冲突的基因对中正链上的基因
+     &&(data_convergent_bed13[i,"V10"]%in%outRst_filter$gene_id)==TRUE){#V10即存在转录冲突的基因对中负链上的基因
     temp <- rbind(temp,data_convergent_bed13[i,])
   }
 }
