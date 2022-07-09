@@ -1,0 +1,57 @@
+【Linux部分】#获取12份癌症样本和12份正常组织样本的counts矩阵
+cd "/share/home/Lixuan/Convergent_overlap/Pan_cancer/bam/counts/"
+featureCounts -T 5 -a "/share/home/Lixuan/gencode.v21.annotation.gtf" -o all.txt -p -B-C -t exon -g gene_id -s 2 " a2021030201p.bam" " a2021030201t.bam" "a2021031803n.bam""a2021031803t.bam""a2021033101n.bam""a2021033101t.bam""a2021033101n.bam""a2021052601p.bam""a2021052601t.bam""a2021071501p.bam""a2021071501t.bam""a2021072101n.bam""a2021072101t.bam""a2021080301n.bam""a2021080301t.bam""a2021080401p.bam""a2021080401t.bam""a2021081201n.bam""a2021081201t.bam""a2021081202p.bam""a2021081202t.bam""a2021081203n.bam""a2021081203t.bam""a2021082001p.bam""a2021082001t.bam"
+mydata = read.table(file = "~Convergent_overlap/Pan_cancer/bam/counts/all.txt",header = T,row.names = 1,stringsAsFactors = F,check.names = F)
+#####准备样品信息矩阵#####
+conditions<-read.table(file="condition.txt", header = F)#"condition.txt"见code目录
+conditions<-factor(t(conditions))
+#####使用 edgeR 包进行计数矩阵预处理#####
+y <- DGEList(counts=mydata,group=conditions)
+#过滤低表达基因：从生物学角度看，一个基因必须有一定的表达量，才能够转录、翻译蛋白质等生物学意义；从统计学角度看，一个过低表达的基因不能够获得显著性差异，不具有统计学意义
+keep <- filterByExpr(y)
+y <- y[keep,keep.lib.sizes=FALSE]
+#TMM 归一化并转化为CPM（每百万计数）：消除由于样品制备或建库测序过程中带来的影响。
+y <- calcNormFactors(y,method="TMM")
+count_norm=cpm(y)#因为每个基因长度不会改变，因此使用CPM没有问题
+count_norm<-as.data.frame(count_norm)
+#####对每个基因进行Wilcoxon秩和检验#####
+pvalues <- sapply(1:nrow(count_norm),function(i){
+  data<-cbind.data.frame(gene=as.numeric(t(count_norm[i,])),conditions)
+  p=wilcox.test(gene~conditions, data)$p.value#wilcox检验适用于成对的数据且无法保证其正态分布，当样本量大于8时，Wilcoxon 秩和检验更可靠（参考的一篇文献）
+  return(p)
+})
+#BH校正后的p值
+fdr=p.adjust(pvalues,method = "fdr")
+#####计算每个基因的fold-change#####
+conditionsLevel<-levels(conditions)
+dataCon1=count_norm[,c(which(conditions==conditionsLevel[1]))]
+dataCon2=count_norm[,c(which(conditions==conditionsLevel[2]))]
+foldChanges=log2(rowMeans(dataCon2)/rowMeans(dataCon1))
+#####基于p-adjust输出结果#####
+outRst<-data.frame(log2foldChange=foldChanges, pValues=pvalues, padj=fdr)
+rownames(outRst)=rownames(count_norm)
+fdrThres=0.05
+outRst_filter <- outRst[outRst$padj<fdrThres,]
+#####找出convergentoverlap基因文件和outRst_filter中有交集的基因#####
+data_convergent_bed13<-as.data.frame(fread("convergent_GRCh38_v38.bed13"))#"convergent_GRCh38_v38.bed13"就是存在转录冲突的基因对的文件
+#####找出存在转录冲突并且两个基因都在癌症与正常组织中存在差异表达的基因对#####
+temp <- data.frame()
+for(i in 1:nrow(data_convergent_bed13)){
+  if((data_convergent_bed13[i,"V4"]%in%outRst_filter$gene_id)==TRUE#V4既存在转录冲突的基因对中正链上的基因
+     &&(data_convergent_bed13[i,"V10"]%in%outRst_filter$gene_id)==TRUE){#V10既存在转录冲突的基因对中负链上的基因
+    temp <- rbind(temp,data_convergent_bed13[i,])
+  }
+}
+#####将上述基因对的log2foldChange、pVlaues、p-adjust信息（这些信息在outrst文件中）添加进数据框#####
+convergent_DEG <- merge(temp,outRst_filter,by.x = ("V4"), by.y = "gene_id")
+names(convergent_DEG)[names(convergent_DEG) =="V4"] <- 'gene+'
+names(convergent_DEG)[names(convergent_DEG) =="log2foldChange"] <- 'log2foldchange+'
+names(convergent_DEG)[names(convergent_DEG) =="pValues"] <- 'pValues+'
+names(convergent_DEG)[names(convergent_DEG) =="FDR"] <- 'pAdjust+'
+convergent_DEG <- merge(convergent_DEG,outRst_filter,by.x = ("V10"), by.y = "gene_id")
+names(convergent_DEG)[names(convergent_DEG) =="V10"] <- 'gene-'
+names(convergent_DEG)[names(convergent_DEG) =="log2foldChange"] <- 'log2foldchange-'
+names(convergent_DEG)[names(convergent_DEG) =="pValues"] <- 'pValues-'
+names(convergent_DEG)[names(convergent_DEG) =="FDR"] <- 'pAdjust-'
+
+convergent_DEG
