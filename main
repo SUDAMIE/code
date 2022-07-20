@@ -13,6 +13,7 @@ keep <- filterByExpr(List)
 List <- List[keep,keep.lib.sizes=FALSE]
 #TMM 归一化并转化为CPM（每百万计数）：消除由于样品制备或建库测序过程中带来的影响。
 List <- calcNormFactors(List,method="TMM")
+count_norm=cpm(List)
 count_norm<-as.data.frame(count_norm)
 #####对每个基因进行Wilcoxon秩和检验#####
 pvalues <- sapply(1:nrow(count_norm),function(i){
