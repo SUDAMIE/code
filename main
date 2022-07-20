@@ -3,6 +3,7 @@
 cd "/share/home/Lixuan/Convergent_overlap/Pan_cancer/bam/counts/"
 featureCounts -T 5 -a "/share/home/Lixuan/gencode.v21.annotation.gtf" -o all.txt -p -B-C -t exon -g gene_id -s 2 " a2021030201p.bam" " a2021030201t.bam" "a2021031803n.bam""a2021031803t.bam""a2021033101n.bam""a2021033101t.bam""a2021033101n.bam""a2021052601p.bam""a2021052601t.bam""a2021071501p.bam""a2021071501t.bam""a2021072101n.bam""a2021072101t.bam""a2021080301n.bam""a2021080301t.bam""a2021080401p.bam""a2021080401t.bam""a2021081201n.bam""a2021081201t.bam""a2021081202p.bam""a2021081202t.bam""a2021081203n.bam""a2021081203t.bam""a2021082001p.bam""a2021082001t.bam"
 mydata = read.table(file = "~Convergent_overlap/Pan_cancer/bam/counts/all.txt",header = T,row.names = 1,stringsAsFactors = F,check.names = F)
+mydata <- mydata[,-c(1:5)]#删去染色体位置，基因长度等信息
 #####准备样品信息矩阵#####
 samples<-read.table(file="samples.txt", header = F)#"samples.txt"见code目录
 samples<-factor(t(samples))
